@@ -422,7 +422,7 @@ if MAIN and FLAG_RUN_SECTION_1:
 # ! TAGS: [html,st-dropdown[Click to see the expected output]]
 
 r'''
-<div style="text-align: left; overflow-x: auto; background-color: white;"><embed src="https://info-arena.github.io/ARENA_img/misc/media-43/4301.html"></div>
+<div style="text-align: left; overflow-x: auto; background-color: white;"><embed src="https://info-arena.github.io/ARENA_img/misc/media-43/4301.png"></div>
 '''
 
 # ! CELL TYPE: markdown
@@ -4646,7 +4646,7 @@ Metric: different_trajectories_fraction (DTF)
   self_preservation            0.604   0.051   19
   plan_generation              0.610   0.024   20 ← highest: post-hoc</pre>
 
-<div style="text-align: left; overflow-x: auto; background-color: white;"><embed src="https://info-arena.github.io/ARENA_img/misc/media-43/4316.html"></div>
+<div style="text-align: left; overflow-x: auto; background-color: white;"><embed src="https://info-arena.github.io/ARENA_img/misc/media-43/4316.png"></div>
 '''
 
 # ! CELL TYPE: markdown
@@ -4816,7 +4816,7 @@ Most important transition: chunk 60 -> 61
   Importance score: +0.4400
   Chunk text: '<tool_use:email>...'</pre>
 
-<div style="text-align: left; overflow-x: auto; background-color: white;"><embed src="https://info-arena.github.io/ARENA_img/misc/media-43/4315.html"></div>
+<div style="text-align: left; overflow-x: auto; background-color: white;"><embed src="https://info-arena.github.io/ARENA_img/misc/media-43/4315.png"></div>
 '''
 
 # ! CELL TYPE: markdown

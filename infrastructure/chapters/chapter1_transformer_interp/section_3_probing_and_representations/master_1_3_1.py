@@ -186,7 +186,7 @@ git clone https://github.com/saprmarks/geometry-of-truth.git
 git clone https://github.com/ApolloResearch/deception-detection.git
 ```
 
-`Llama-2-13b-hf` is a gated model, so you'll need a HuggingFace access token (as well as requesting access [here](https://huggingface.co/meta-llama/Llama-2-13b-hf)). When you've got access and made a HuggingFace token, create a `.env` file in your `chapter1_transformer_interp/exercises` directory with:
+`Llama-2-13b-hf` and is a gated model, so you'll need a HuggingFace access token (as well as requesting access [here](https://huggingface.co/meta-llama/Llama-2-13b-hf), you might also want to request access to [Llama-3.1-8b-Instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) and [Llama-3.3-70b-Instruct](https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct) while you're at it, since you'll need those models later in the exercises). When you've got access and made a HuggingFace token with read access, create a `.env` file in your `chapter1_transformer_interp/exercises` directory with:
 
 ```
 HF_TOKEN=hf_your_token_here
@@ -435,6 +435,7 @@ r'''
 > ```
 
 Implement a function that extracts the last-token hidden state from specified layers for a batch of statements. You'll need to:
+
 1. Tokenize the statements with padding
 2. Run the forward pass with `output_hidden_states=True`
 3. For each sequence, find the index of the last non-padding token using `attention_mask`
@@ -532,11 +533,13 @@ if MAIN and FLAG_RUN_SECTION_1:
     # Extract activations at the probe layer for all datasets
     activations = {}
     labels_dict = {}
+    statements_dict = {}
 
     for name in DATASET_NAMES:
         df = datasets[name]
         statements = df["statement"].tolist()
         labs = t.tensor(df["label"].values, dtype=t.float32)
+        statements_dict[name] = statements
 
         acts = extract_activations(statements, model, tokenizer, [PROBE_LAYER])
         activations[name] = acts[PROBE_LAYER]
@@ -658,7 +661,8 @@ if MAIN and FLAG_RUN_SECTION_1:
 
     for i, name in enumerate(DATASET_NAMES):
         acts = activations[name]
-        labs = labels_dict[name]
+        label_text = labels_dict[name]
+        prompts = statements_dict[name]
         pcs = get_pca_components(acts, k=2)
         X_centered = acts - acts.mean(dim=0)
         projected = (X_centered @ pcs).numpy()
@@ -668,7 +672,7 @@ if MAIN and FLAG_RUN_SECTION_1:
         pc_var = t.tensor(projected).var(dim=0)
         pct_explained = (pc_var / total_var * 100).tolist()
 
-        colors = ["blue" if l == 1 else "red" for l in labs.tolist()]
+        colors = ["blue" if l == 1 else "red" for l in label_text.tolist()]
         fig.add_trace(
             go.Scatter(
                 x=projected[:, 0],
@@ -677,6 +681,15 @@ if MAIN and FLAG_RUN_SECTION_1:
                 marker=dict(color=colors, size=3, opacity=0.5),
                 name=name,
                 showlegend=False,
+                hovertext=prompts,
+                customdata=list(zip(prompts, label_text)),
+                hovertemplate=(
+                    "<b>%{customdata[1]}</b><br>"
+                    "%{customdata[0]}<br>"
+                    "PC1: %{x:.2f}<br>"
+                    "PC2: %{y:.2f}"
+                    "<extra></extra>"
+                ),
             ),
             row=1,
             col=i + 1,
@@ -960,6 +973,7 @@ r'''
 > ```
 
 Implement the Mass-Mean (difference-of-means) probe as a PyTorch `nn.Module`. The key components:
+
 * `direction`: the vector `mean(true_acts) - mean(false_acts)`, stored as a non-trainable parameter
 * `covariance`: the pooled within-class covariance matrix (for optional IID-corrected evaluation)
 * `forward(x, iid=False)`: returns `sigmoid(x @ direction)`, or `sigmoid(x @ inv_cov @ direction)` if `iid=True`
@@ -2637,7 +2651,7 @@ if MAIN and FLAG_RUN_SECTION_4:
     tests.test_deception_steering_hook(DeceptionSteeringHook)
 
 if MAIN and FLAG_RUN_SECTION_4:
-    mms_normed = mm_probe.direction / (mm_probe.direction.norm() + 1e-8)
+    mms_direction = mm_probe.direction
 
     print("=== Causal Steering with Deception Probe Direction ===\n")
 
@@ -2663,7 +2677,7 @@ if MAIN and FLAG_RUN_SECTION_4:
     print(f"[Baseline] {baseline_text2.strip()}\n")
 
     for coef in [-0.3, -0.1, 0.1, 0.3]:
-        hook = DeceptionSteeringHook(mms_normed, mid_layer, coef, apply_to_all_tokens=True)
+        hook = DeceptionSteeringHook(mm_direction, mid_layer, coef, apply_to_all_tokens=True)
         hook.enable(instruct_model)
         try:
             with t.no_grad():
