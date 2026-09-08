@@ -50,7 +50,9 @@ render_lines_with_plotly(rays1d)
 
 # %%
 # Solve O + uD = L_1 + v(L_2 - L_1). An intersection requires u >= 0 and 0 <= v <= 1.
-def intersect_ray_1d(ray: Float[Tensor, "points dims"], segment: Float[Tensor, "points dims"]) -> bool:
+def intersect_ray_1d(
+    ray: Float[Tensor, "points dims"], segment: Float[Tensor, "points dims"]
+) -> bool:
     """
     ray: shape (n_points=2, n_dim=3)  # O, D points
     segment: shape (n_points=2, n_dim=3)  # L_1, L_2 points
