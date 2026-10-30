@@ -153,7 +153,7 @@ ipython.run_line_magic("autoreload", "2")
 
 # # Install dependencies
 # if "transformer_lens" not in packages_distributions():
-#     %pip install transformer_lens==2.17.0 einops git+https://github.com/ARENA-education/eindex.git jaxtyping git+https://github.com/callummcdougall/CircuitsVis.git#subdirectory=python
+#     %pip install "transformer_lens>=3.9,<4" einops git+https://github.com/ARENA-education/eindex.git jaxtyping git+https://github.com/ARENA-education/CircuitsVis.git@arena-tl4.1#subdirectory=python
 
 # # Get root directory, handling 3 different cases: (1) Colab, (2) notebook not in ARENA repo, (3) notebook in ARENA repo
 # root = (
@@ -375,8 +375,6 @@ does not hold in general for floating point numbers.
 False
 ```
 </details>
-
-
 '''
 
 # ! CELL TYPE: markdown
@@ -1269,6 +1267,10 @@ def generate_repeated_tokens(
     """
     t.manual_seed(0)  # for reproducibility
     prefix = (t.ones(batch_size, 1) * model.tokenizer.bos_token_id).long()
+    # EXERCISE
+    # # YOUR CODE HERE - build `rep_tokens` from `prefix` and two copies of a random half, and return it
+    # raise NotImplementedError()
+    # END EXERCISE
     # SOLUTION
     rep_tokens_half = t.randint(0, model.cfg.d_vocab, (batch_size, seq_len), dtype=t.int64)
     rep_tokens = t.cat([prefix, rep_tokens_half, rep_tokens_half], dim=-1).to(device)
@@ -1786,7 +1788,7 @@ if MAIN:
     #     height=350,
     #     return_fig=True,
     # )
-    # fig.write_html(section_dir / "1205.html")
+    # fig.write_html(section_dir / "1205.html", include_plotlyjs="cdn")
     # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -1939,7 +1941,7 @@ if MAIN:
 #     height=500,
 #     return_fig=True,
 # )
-# fig.write_html(section_dir / "1206-A.html")
+# fig.write_html(section_dir / "1206-A.html", include_plotlyjs="cdn")
 
 # def save_pattern_hook(
 #     pattern: Float[Tensor, "batch head_index dest_pos source_pos"],
@@ -2394,7 +2396,7 @@ Once you've passed the tests, you can plot the results:
 
 imshow(
     ablation_scores,
-    labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+    labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
     title="Loss Difference After Ablating Heads",
     text_auto=".2f",
     width=900,
@@ -2404,13 +2406,13 @@ imshow(
 # FILTERS: ~
 # imshow(
 #     ablation_scores,
-#     labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+#     labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
 #     title="Loss Difference After Ablating Heads",
 #     text_auto=".2f",
 #     width=900,
 #     height=350,
 #     return_fig=True,
-# ).write_html(str(section_dir / "1209.html"))
+# ).write_html(str(section_dir / "1209.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -2481,7 +2483,7 @@ if MAIN:
 
     imshow(
         mean_ablation_scores,
-        labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+        labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
         title="Loss Difference After Ablating Heads",
         text_auto=".2f",
         width=900,
@@ -2490,13 +2492,13 @@ if MAIN:
     # FILTERS: ~
     # imshow(
     #     mean_ablation_scores,
-    #     labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+    #     labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
     #     title="Loss Difference After Ablating Heads",
     #     text_auto=".2f",
     #     width=900,
     #     height=350,
     #     return_fig=True,
-    # ).write_html(str(section_dir / "1209-mean.html"))
+    # ).write_html(str(section_dir / "1209-mean.html"), include_plotlyjs="cdn")
     # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -2594,7 +2596,7 @@ z_ablation_scores = [
 
 imshow(
     t.stack(z_ablation_scores),
-    labels={"x": "Head", "y": "Position offset", "color": "Logit diff"},
+    labels={"x": "Head", "y": "Position offset", "color": "Loss diff"},
     title="Loss Difference (ablating heads everywhere except for certain offset positions)",
     text_auto=".2f",
     y=[str(offset) for offset in offsets],
@@ -2649,7 +2651,7 @@ mean_ablation_scores = get_ablation_scores(model, rep_tokens_max2, ablation_func
 
 imshow(
     mean_ablation_scores,
-    labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+    labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
     title="Loss Difference After Ablating Heads",
     text_auto=".2f",
     width=900,
@@ -2734,7 +2736,7 @@ z_ablation_scores = [
 
 imshow(
     t.stack(z_ablation_scores),
-    labels={"x": "Head", "y": "Position offset", "color": "Logit diff"},
+    labels={"x": "Head", "y": "Position offset", "color": "Loss diff"},
     title="Loss Difference (ablating heads everywhere except for certain offset positions)",
     text_auto=".2f",
     y=[str(offset) for offset in offsets],
@@ -2745,14 +2747,14 @@ imshow(
 # FILTERS: ~
 # imshow(
 #     t.stack(z_ablation_scores),
-#     labels={"x": "Head", "y": "Position offset", "color": "Logit diff"},
+#     labels={"x": "Head", "y": "Position offset", "color": "Loss diff"},
 #     title="Loss Difference (ablating heads everywhere except for certain offset positions)",
 #     text_auto=".2f",
 #     y=[str(offset) for offset in offsets],
 #     width=900,
 #     height=400,
 #     return_fig=True,
-# ).write_html(str(section_dir / "1210-A.html"))
+# ).write_html(str(section_dir / "1210-A.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -2796,7 +2798,7 @@ mean_ablation_scores = get_ablation_scores(model, rep_tokens_max2, ablation_func
 
 imshow(
     mean_ablation_scores,
-    labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+    labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
     title="Loss Difference After Ablating Heads",
     text_auto=".2f",
     width=900,
@@ -2806,13 +2808,13 @@ imshow(
 # FILTERS: ~
 # imshow(
 #     mean_ablation_scores,
-#     labels={"x": "Head", "y": "Layer", "color": "Logit diff"},
+#     labels={"x": "Head", "y": "Layer", "color": "Loss diff"},
 #     title="Loss Difference After Ablating Heads",
 #     text_auto=".2f",
 #     width=900,
 #     height=350,
 #     return_fig=True,
-# ).write_html(str(section_dir / "1210-B.html"))
+# ).write_html(str(section_dir / "1210-B.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -2953,7 +2955,7 @@ $x_i^T W_{QK}^h x_j = (x_i^T W_Q^h) (x_j^T W_K^h)^T$ is the attention score paid
 <details>
 <summary>Answer</summary>
 
-$W_E W_{QK}^h W_E^T$ has size $(d_\text{vocab}, d_\text{vocab})$, it is a bilinear form describing **where information is moved to and from**, among tokens in the context (i.e. which tokens pay attention to which others).
+$W_E W_{QK}^h W_E^T$ has size $(d_\text{vocab}, d_\text{vocab})$, it is a bilinear form describing **where information is moved to and from**, among tokens in our vocabulary (i.e. which tokens pay attention to which others, based only on token identity).
 
 If $A$ and $B$ are one-hot encodings for tokens `A` and `B`, then $A^T W_E W_{QK}^h W_E^T B$ is the attention score paid by token `A` to token `B`:
 
@@ -3426,7 +3428,7 @@ imshow(
 #     width=700,
 #     height=600,
 #     return_fig=True,
-# ).write_html(section_dir / "1211.html")
+# ).write_html(section_dir / "1211.html", include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -3670,7 +3672,7 @@ imshow(
 #     width=700,
 #     height=600,
 #     return_fig=True,
-# ).write_html(section_dir / "1212.html")
+# ).write_html(section_dir / "1212.html", include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -3710,7 +3712,7 @@ $$
 
 where $e$ stands for the token embedding, $pe$ for the positional embedding, and $x^\text{0.h}$ for the output of head $h$ in layer 0 (and the sum of these tensors equals the residual stream $x$). All these tensors have shape `[seq, d_model]`. So we can treat the expression above as a sum of matrix multiplications `[seq, d_model] @ [d_model, d_head] -> [seq, d_head]`.
 
-For ease of notation, I'll refer to the 14 inputs as $(y_0, y_1, ..., y_{13})$ rather than $(e, pe, x^\text{0.h}, ..., x^{h.11})$. So we have:
+For ease of notation, I'll refer to the 14 inputs as $(y_0, y_1, ..., y_{13})$ rather than $(e, pe, x^\text{0.0}, ..., x^\text{0.11})$. So we have:
 
 $$
 x W^h_Q = \sum_{i=0}^{13} y_i W^h_Q
@@ -3857,7 +3859,7 @@ if MAIN:
         #     width=800,
         #     height=400,
         #     return_fig=True,
-        # ).write_html(section_dir / f"1213-{name[0]}.html")
+        # ).write_html(section_dir / f"1213-{name[0]}.html", include_plotlyjs="cdn")
         # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -4082,7 +4084,7 @@ for i in range(0, full_seq_len * len(component_labels), full_seq_len):
 fig.show(config={"staticPlot": True})
 
 # FILTERS: ~
-# fig.write_html(section_dir / "1214-C.html")
+# fig.write_html(section_dir / "1214-C.html", include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -4442,7 +4444,7 @@ if MAIN:
 #     labels={"x": "Composition score"},
 #     title="Random composition scores",
 #     return_fig=True,
-# ).write_html(str(section_dir / "1216.html"))
+# ).write_html(str(section_dir / "1216.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown

@@ -358,7 +358,7 @@ will result in the output `"MyModule(arg1=arg1, arg2=arg2, ...)"` when you print
 r'''
 ## ReLU
 
-The first module you should implement is `ReLU`. This will relatively simple, since it doesn't involve any argument (so we only need to implement `forward`). Make sure you look at the PyTorch documentation page for [ReLU](https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html) so that you're comfortable with how they work.
+The first module you should implement is `ReLU`. This will be relatively simple, since it doesn't involve any argument (so we only need to implement `forward`). Make sure you look at the PyTorch documentation page for [ReLU](https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html) so that you're comfortable with how they work.
 
 ReLU is defined as the element-wise maximum between the input and a tensor of zeros. It's one of the simplest types of **nonlinear activation functions**. These are essential because linear operations compose to make more linear operations, which is very limiting. On the other hand, the **universal approximation theorem** tells us that we can approximate any continuous function using a sufficiently large neural network, if we use nonlinear activation functions. It's worth emphasizing that the theory of the UAT and what networks look like in practice are very different - in particular, many versions of the UAT are based on a shallow but extremely wide neural network, on the other hand most of the power of modern neural networks comes from their ability to compose between layers: feeding the output of one layer into the input of another, and create increasingly expressive functions. We'll explore this idea more when we study circuits in next week's interpretability material.
 '''
@@ -943,7 +943,7 @@ line(
 #     title="SimpleMLP training on MNIST",
 #     width=700,
 #     return_fig=True,
-# ).write_html(section_dir / "0201.html")
+# ).write_html(section_dir / "0201.html", include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -1126,7 +1126,7 @@ if MAIN:
     #     title="SimpleMLP training on MNIST",
     #     width=700,
     #     return_fig=True,
-    # ).write_html(section_dir / "0202.html")
+    # ).write_html(section_dir / "0202.html", include_plotlyjs="cdn")
     # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -1252,7 +1252,7 @@ if MAIN:
     #     title="SimpleMLP training on MNIST",
     #     width=800,
     #     return_fig=True,
-    # ).write_html(section_dir / "0203.html")
+    # ).write_html(section_dir / "0203.html", include_plotlyjs="cdn")
     # END FILTERS
 # END HIDE
 
@@ -1319,6 +1319,7 @@ We strongly recommend you at least watch the video in the first bullet point. Th
 * [But what is a convolution?](https://www.youtube.com/watch?v=KuXjwB4LzSA) by 3Blue1Brown
 * [A Comprehensive Guide to Convolutional Neural Networks (Medium)](https://medium.com/towards-data-science/a-comprehensive-guide-to-convolutional-neural-networks-the-eli5-way-3bd2b1164a53)
 * [Zoom In: An Introduction to Circuits](https://distill.pub/2020/circuits/zoom-in/)
+* [Understanding 2D Convolutions in PyTorch (Medium)](https://medium.com/@ml_dl_explained/understanding-2d-convolutions-in-pytorch-b35841149f5f) - a useful reference if you find the `in_channels` and `out_channels` arguments of `nn.Conv2d` confusing
 '''
 
 # ! CELL TYPE: markdown
@@ -1343,7 +1344,7 @@ Convolutions have 4 important parameters:
 - **Size** - the size of the kernel, i.e. the size of each patch of the input that the kernel is applied to when computing each output value.
 - **Stride** - the distance the kernel moves each time it is applied.
 - **Padding** - the number of pixels we pad around the input on each side.
-- **Output channels** - the number of separate kernels of shape `(in_channels, kernel_width, kernel_height)` we apply to the input. Each separate kernel has different learned weights, and will produce a separate output channel.
+- **Output channels** - the number of separate kernels of shape `(in_channels, kernel_height, kernel_width)` we apply to the input. Each separate kernel has different learned weights, and will produce a separate output channel.
 
 Below is an illustration with `size=(3,3), stride=1, padding=1`, three input channels and a single output channel. Note that although the illustration below only shows padding on the left and top of the image, in reality we pad all sides of the image.
 
@@ -1563,7 +1564,7 @@ Weight initialisation methods like Xavier (which we encountered yesterday) are b
 Reasons you can give here include:
 
 * Input normalization avoids extreme activation values, which helps stabilize gradient-based optimization methods.
-* Internal covariate shift is reduced, i.e. the mean and standard deviation is kept constant across the layers. 
+* Internal covariate shift is reduced, i.e. the mean and standard deviation of each feature passed to the next layer are set by batchnorm's learned `weight` and `bias` parameters, rather than drifting during training as the weights of earlier layers change.
     - This was the original motivation for batchnorm, although later work ([Santurkar et al., 2018](https://arxiv.org/abs/1805.11604)) found that this isn't really why it helps: their experiments suggest the main benefit is that batchnorm makes the loss landscape smoother, so gradients are more reliable and larger learning rates can be used.
 * Regularisation effect: since normalization statistics depend on the minibatch, the network must generalize to having the same input with different normalizations (which depend on the other members of that minibatch.)
 
@@ -1737,6 +1738,8 @@ A few final tips:
 - Remember to use `weight` and `bias` in the fwd pass, after normalizing. You should multiply by `weight` and add `bias`.
 - All your tensors (`weight`, `bias`, `running_mean` and `running_var`) are vectors of length `num_features`, this should help you figure out what dimensions you're operating on.
 - Remember that the shape of `x` is `(batch, num_features, height, width)` which doesn't broadcast with `(num_features,)`. The easiest way to fix this is to reshape the latter to something like `(1, num_features, 1, 1)`, or optionally just `(num_features, 1, 1)`.
+- Update `running_mean` and `running_var` inside a `with t.no_grad():` block. They're only used in eval mode, so they shouldn't be part of the computational graph - and if you don't, each update holds onto the previous step's graph, which then grows without bound as you train.
+- Like PyTorch, you'll need two different variance estimates. Normalize the batch using the **biased** variance `x.var(..., correction=0)` (dividing by $n$), but update `running_var` using the **unbiased** variance `x.var(..., correction=1)` (dividing by $n-1$). Here $n$ is the number of values per channel, i.e. `batch * height * width`. See the dropdown below for why.
 '''
 
 # ! CELL TYPE: code
@@ -1771,7 +1774,8 @@ class BatchNorm2d(nn.Module):
         """
         Normalize each channel.
 
-        Compute the variance using `torch.var(x, unbiased=False)`
+        In training mode, normalize using the biased variance `x.var(..., correction=0)`, but update
+        `running_var` using the unbiased variance `x.var(..., correction=1)`.
         Hint: you may also find it helpful to use the argument `keepdim`.
 
         x: shape (batch, channels, height, width)
@@ -1785,11 +1789,16 @@ class BatchNorm2d(nn.Module):
         if self.training:
             # Take mean over all dimensions except the feature dimension
             mean = x.mean(dim=(0, 2, 3))
-            var = x.var(dim=(0, 2, 3), unbiased=False)
-            # Updating running mean and variance, in line with PyTorch documentation
-            self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean
-            self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var
-            self.num_batches_tracked += 1
+            # Normalize with the batch's actual variance (biased, dividing by n)
+            var = x.var(dim=(0, 2, 3), correction=0)
+            # Updating running mean and variance, in line with PyTorch documentation.
+            # Disable gradients as they are not parameters
+            with t.no_grad():
+                # running_var estimates the population variance, so use the unbiased estimator (dividing by n-1)
+                var_unbiased = x.var(dim=(0, 2, 3), correction=1)
+                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean
+                self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var_unbiased
+                self.num_batches_tracked += 1
         else:
             mean = self.running_mean
             var = self.running_var
@@ -1817,6 +1826,7 @@ if MAIN:
     tests.test_batchnorm2d_module(BatchNorm2d)
     tests.test_batchnorm2d_forward(BatchNorm2d)
     tests.test_batchnorm2d_running_mean(BatchNorm2d)
+    tests.test_batchnorm2d_running_stats_detached(BatchNorm2d)
 # END HIDE
 
 # ! CELL TYPE: markdown
@@ -1832,10 +1842,11 @@ The easiest way is to structure it like this (we've omitted the reshaping to mak
 ```python
 if self.training:
     mean = ... # mean of new data
-    var = ... # variance of new data
-    self.running_mean = ... # update running mean using exponential moving average
-    self.running_var = ... # update running variance using exponential moving average
-    self.num_batches_tracked += 1
+    var = ... # variance of new data (biased, correction=0)
+    with t.no_grad():
+        self.running_mean = ... # update running mean using exponential moving average
+        self.running_var = ... # update running variance using exponential moving average (of the unbiased variance, correction=1)
+        self.num_batches_tracked += 1
 else:
     mean = self.running_mean
     var = self.running_var
@@ -1855,7 +1866,18 @@ To track the running mean, we use an exponentially weighted moving average. The 
 This can be implemented recursively as:
 $$\text{running\_mean} = (1 - \text{momentum}) \cdot \text{running\_mean} + \text{momentum} \cdot \text{mean}$$
 
-We implement the exponential moving average for the running variance using the same formula.
+We implement the exponential moving average for the running variance using the same formula, with one difference: the variance we average is the **unbiased** estimate `x.var(..., correction=1)`, not the biased one we normalize with (see the next dropdown).
+
+</details>
+
+<details><summary> Why do we use two different variance estimators?</summary>
+
+Normalizing the batch and estimating `running_var` are two different jobs:
+
+- **Normalizing the batch.** In training mode, we transform the batch we actually have so that each channel has mean 0 and variance 1. The variance that does this is the batch's own variance, dividing by $n$ (`correction=0`). Dividing by $n-1$ instead would leave the output with variance $(n-1)/n$ rather than 1.
+- **Estimating the population variance.** `running_var` is used in eval mode, where there might not be a batch at all (e.g. we classify a single image). So it's an estimate of the variance of the whole data distribution, built up from many small samples. The variance of a sample (dividing by $n$) underestimates the population variance by a factor of $(n-1)/n$ on average, because the sample mean is always closer to the sample than the true mean is. Dividing by $n-1$ instead (**Bessel's correction**) removes this bias.
+
+For a conv layer, $n$ = `batch * height * width` is usually large, so the difference is tiny (e.g. $n/(n-1) \approx 1.000005$ for a batch of 64 images at $56 \times 56$). But for small batches it matters: with `BatchNorm1d` and a batch of 8, the biased estimate would make `running_var` about 14% too small. This is also what the original BatchNorm paper does ([Ioffe & Szegedy, 2015](https://arxiv.org/abs/1502.03167), Algorithm 2).
 
 </details>
 
@@ -1863,36 +1885,7 @@ We implement the exponential moving average for the running variance using the s
 <summary>Solution</summary>
 
 ```python
-def forward(self, x: Tensor) -> Tensor:
-    """
-    Normalize each channel.
-
-    Compute the variance using `torch.var(x, unbiased=False)`
-    Hint: you may also find it helpful to use the argument `keepdim`.
-
-    x: shape (batch, channels, height, width)
-    Return: shape (batch, channels, height, width)
-    """
-    # Calculating mean and var over all dims except for the channel dim
-    if self.training:
-        # Take mean over all dimensions except the feature dimension
-        mean = x.mean(dim=(0, 2, 3))
-        var = x.var(dim=(0, 2, 3), unbiased=False)
-        # Updating running mean and variance, in line with PyTorch documentation
-        self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * mean
-        self.running_var = (1 - self.momentum) * self.running_var + self.momentum * var
-        self.num_batches_tracked += 1
-    else:
-        mean = self.running_mean
-        var = self.running_var
-
-    # Rearranging these so they can be broadcasted
-    reshape = lambda x: einops.rearrange(x, "channels -> 1 channels 1 1")
-
-    # Normalize, then apply affine transformation from self.weight & self.bias
-    x_normed = (x - reshape(mean)) / (reshape(var) + self.eps).sqrt()
-    x_affine = x_normed * reshape(self.weight) + reshape(self.bias)
-    return x_affine
+SOLUTION
 ```
 
 </details>
@@ -2274,7 +2267,7 @@ You can use these two facts to construct a list `in_features_per_group`, and the
 <details>
 <summary>Help - I'm not sure how to construct the 7x7 conv at the very start.</summary>
 
-The stride, padding & output channels are givin in the diagram; the only thing not provided is `in_channels`. Recall that the input to this layer is an RGB image - can you deduce from this how many input channels your layer should have?
+The stride, padding & output channels are given in the diagram; the only thing not provided is `in_channels`. Recall that the input to this layer is an RGB image - can you deduce from this how many input channels your layer should have?
 
 </details>
 
@@ -2896,6 +2889,9 @@ def train(args: ResNetTrainingArgs) -> tuple[list[float], list[float], ResNet34]
     return loss_list, accuracy_list, model
     # END SOLUTION
 
+# ! CELL TYPE: code
+# ! FILTERS: []
+# ! TAGS: []
 
 # HIDE
 if MAIN:
@@ -2923,7 +2919,7 @@ if MAIN:
     #     title="ResNet Feature Extraction",
     #     width=800,
     #     return_fig=True,
-    # ).write_html(section_dir / "0204.html")
+    # ).write_html(section_dir / "0204.html", include_plotlyjs="cdn")
     # END FILTERS
 # END HIDE
 

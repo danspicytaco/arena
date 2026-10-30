@@ -169,7 +169,7 @@ ipython.run_line_magic("autoreload", "2")
 # try:
 #     import transformer_lens
 # except:
-#     %pip install einops git+https://github.com/ARENA-education/eindex.git jaxtyping wandb transformer_lens==2.17.0 "git+https://github.com/neelnanda-io/neel-plotly"
+#     %pip install einops git+https://github.com/ARENA-education/eindex.git jaxtyping wandb "transformer_lens>=3.9,<4" "git+https://github.com/neelnanda-io/neel-plotly"
 
 # # Get root directory, handling 3 different cases: (1) Colab, (2) notebook not in ARENA repo, (3) notebook in ARENA repo
 # root = (
@@ -463,25 +463,25 @@ r'''
 `temp_board_state` is an array of shape `(8, 8)`. When we use `.flatten()`, this returns a **view** (i.e. same underlying data) with shape `(64,)`. When we index it by `ALL_SQUARES` (a list of 60 indices, which is all the indices excluding the "middle squares"), this also returns a view (still the same data). We can then set those 60 elements to be the model's log probs. This will change the values in the original tensor, without changing that tensor's shape.
 </details>
 
-We can use the `text` argument to annotate all the legal squares with their token IDs, which might be easier in some cases. Here's an example (you might want to reuse this code in some later exercises):
+We can use the `text` argument to annotate all the legal squares with their square indices (0-63, not token IDs), which might be easier in some cases. Here's an example (you might want to reuse this code in some later exercises):
 '''
 
 # ! CELL TYPE: code
 # ! FILTERS: []
 # ! TAGS: [main]
 
-TOKEN_IDS_2D = np.array([str(i) if i in ALL_SQUARES else "" for i in range(64)]).reshape(8, 8)
+SQUARE_INDICES_2D = np.array([str(i) if i in ALL_SQUARES else "" for i in range(64)]).reshape(8, 8)
 BOARD_LABELS_2D = np.array(["ABCDEFGH"[i // 8] + f"{i % 8}" for i in range(64)]).reshape(8, 8)
 
-print(TOKEN_IDS_2D)
+print(SQUARE_INDICES_2D)
 print(BOARD_LABELS_2D)
 
 utils.plot_board_values(
     t.stack([logprobs_board, logprobs_board]),  # shape (2, 8, 8)
-    title="Example Log Probs (with annotated token IDs)",
+    title="Example Log Probs (with annotated square indices)",
     width=800,
-    text=np.stack([TOKEN_IDS_2D, BOARD_LABELS_2D]),  # shape (2, 8, 8)
-    board_titles=["Labelled by token ID", "Labelled by board label"],
+    text=np.stack([SQUARE_INDICES_2D, BOARD_LABELS_2D]),  # shape (2, 8, 8)
+    board_titles=["Labelled by square index", "Labelled by board label"],
     # FILTERS: ~
     # filename=str(section_dir / "15302.html"),
     # END FILTERS
@@ -924,7 +924,7 @@ fig = px.imshow(
 fig.show()
 # END HIDE
 # FILTERS: ~
-# fig.write_html(str(section_dir / "15306.html"))
+# fig.write_html(str(section_dir / "15306.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -1190,7 +1190,7 @@ Hopefully I've convinced you anecdotally that a linear probe works. But to be mo
 # Create a tensor of "their vs mine" board states (by flipping even parities of the "focus_states" tensor)
 focus_states_theirs_vs_mine = focus_states * (-1 + 2 * (t.arange(focus_states.shape[1]) % 2))[None, :, None, None]
 
-# Convert values (0: empty, 1: theirs, -1: mine) to (0: empty, 1: theirs, 2: mine)
+# Convert values (0: empty, 1: mine, -1: theirs) to (0: empty, 1: theirs, 2: mine)
 focus_states_theirs_vs_mine[focus_states_theirs_vs_mine == 1] = 2
 focus_states_theirs_vs_mine[focus_states_theirs_vs_mine == -1] = 1
 
@@ -1577,7 +1577,7 @@ scatter(
 #     color_continuous_scale="Geyser",
 #     width=1400,
 #     return_fig=True,
-# ).write_html(str(section_dir / "15314.html"))
+# ).write_html(str(section_dir / "15314.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -2623,7 +2623,7 @@ print("newly_illegal", newly_illegal)
 r'''
 <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">Flipping the color of cell F4
 newly_legal []
-newly_illegal ['C6']</pre>
+newly_illegal ['C7']</pre>
 '''
 
 # ! CELL TYPE: code
@@ -2708,7 +2708,7 @@ We want our patching metric to satisfy the following conditions:
 * Should be a **linear** function of the log probs.
     * **Important note** - this is *not* the same as being a linear function of the logits. Can you see why?
 * Should just be a function of the logits for the `F0` token, at the final game move (since this is the only move that changes between clean and corrupted).
-    * Note - you can index into the `d_vocab` dimension of logits using the `f0_index` variable defined below.
+    * Note - you can index into the `d_vocab` dimension of logits using the `F0_index` variable defined below.
 
 This should be enough for you to uniquely define your patching metric. Also, note that it should return a **scalar tensor** (this is important for the transformerlens patching functions to work).
 '''
@@ -2808,7 +2808,7 @@ def get_act_patch_resid_pre(
     model: HookedTransformer,
     corrupted_input: Float[Tensor, "batch pos"],
     clean_cache: ActivationCache,
-    patching_metric: Callable[[Float[Tensor, "batch seq d_model"]], Float[Tensor, ""]],
+    patching_metric: Callable[[Float[Tensor, "batch seq d_vocab"]], Float[Tensor, ""]],
 ) -> Float[Tensor, "2 n_layers"]:
     """
     Returns an array of results corresponding to the results of patching at each (attn_out, mlp_out)
@@ -2853,7 +2853,7 @@ if MAIN:
 #     width=700,
 #     labels={"value": "Patching Effect", "index": "Layer"},
 # )
-# fig.write_html(str(section_dir / "15331.html"))
+# fig.write_html(str(section_dir / "15331.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -3117,7 +3117,7 @@ fig = px.imshow(
 )
 fig.show()
 # FILTERS: ~
-# fig.write_html(str(section_dir / "15333.html"))
+# fig.write_html(str(section_dir / "15333.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -3256,7 +3256,7 @@ board_state_at_top_moves.shape
 
 utils.plot_board_values(
     board_state_at_top_moves,
-    title=f"Aggregated top 30 moves for neuron L{layer}N{neuron}<br>(1 = theirs, -1 = mine)",
+    title=f"Aggregated top 30 moves for neuron L{layer}N{neuron}<br>(1 = mine, -1 = theirs)",
     height=380,
     width=450,
     # FILTERS: ~
@@ -3458,7 +3458,7 @@ px.histogram(
     nbins=100,
     width=1200,
     height=400,
-).write_html(str(section_dir / "15339.html"))
+).write_html(str(section_dir / "15339.html"), include_plotlyjs="cdn")
 # END FILTERS
 
 # ! CELL TYPE: markdown
@@ -3655,10 +3655,10 @@ Your `training_step` function should:
     - Tip: remember to use inference mode here, since we're only running our model to get the activations to feed into our probe.
     - Tip: remember that the `games_id` tensor you're given has shape `(batch_size, 60)`, so you'll need to slice off the last move before passing into the model.
 - Slice the activations appropriately (we have `args.pos_start` and `args.pos_end` telling you which positions to use, and also we're only using the even positions for now)
-- Compute the probe output, by taking an inner product over the `d_model` dimension and summing over positions.
+- Compute the probe output, by taking an inner product over the `d_model` dimension.
 - Convert the probe output to logprobs, and get correct logprobs by indexing into it.
-    - Tip: we're using even positions, so remember that we convert from board state to our probe basis using "mine=black, theirs=white".
-    - Tip: this indexing will require taking code from earlier which computes board state from the game sequence. We recommend just using `get_board_states_and_legal_moves` and keeping the `state` object returned - remember that this state object has values 0, 1, 2 corresponding to options empty, white, black.
+    - Tip: we're using even positions, so remember that we convert from board state to our probe basis using "mine=white, theirs=black".
+    - Tip: this indexing needs the board state after each move. You're given it as `states` (sliced from `self.board_states`, which the trainer precomputes once with `get_board_states` and keeps on the GPU - the same states `get_board_states_and_legal_moves` returns, minus the slow legal-move computation). Remember that it has values 0, -1, 1 corresponding to options empty, white, black.
 - Compute the loss, by summing over the row & column dimensions and averaging over the batch & seqpos dimensions (this is because the latter are data batch dimensions, but the former are effectively probe batch dimensions, since we're training multiple probes at once on each board square).
 - Return the loss (this code is given to you).
 
@@ -3671,18 +3671,37 @@ We recommend you set `use_wandb=False` while working on this code, until you're 
 # ! FILTERS: []
 # ! TAGS: []
 
+def get_board_states(games_square: Int[Tensor, "n_games n_moves"]) -> Int[Tensor, "n_games n_moves rows cols"]:
+    """
+    Same `states` as `get_board_states_and_legal_moves` returns (0 = empty, 1 = black, -1 = white), but
+    ~25x faster: it skips the legal moves (most of that function's runtime) and fills a numpy array rather
+    than writing into a torch tensor one move at a time. This makes it fast enough to precompute the
+    states of every training game once (~5 seconds for 10k games).
+    """
+    n_games, n_moves = games_square.shape
+    states = np.zeros((n_games, n_moves, 8, 8), dtype=np.int32)
+    for n, game in enumerate(games_square.tolist()):
+        board = utils.OthelloBoardState()
+        for i, move in enumerate(game):
+            board.umpire(move)
+            states[n, i] = board.state
+    return t.from_numpy(states)
+
+
 class LinearProbeTrainer:
     def __init__(self, model: HookedTransformer, args: ProbeTrainingArgs):
         self.model = model
         self.args = args
         self.linear_probe = args.setup_linear_probe(model)
+        self.games_id = board_seqs_id[: args.num_games].to(device)
+        self.board_states = get_board_states(board_seqs_square[: args.num_games]).to(device)
 
     def training_step(self, indices: Int[Tensor, "n_games"]) -> Float[Tensor, ""]:
-        # Use indices to slice our batch of games (remember, games_id = token IDs
-        # from 1 to 60, and games_square = indices of squares in board)
-        indices_cpu = indices.cpu()
-        games_id = board_seqs_id[indices_cpu]  # shape [batch n_moves=60]
-        games_square = board_seqs_square[indices_cpu]  # shape [batch n_moves=60]
+        # Use indices to slice our batch of games (remember, games_id = token IDs from 1 to 60,
+        # and states = board state after each move, with 0 = empty, 1 = black, -1 = white).
+        indices = indices.to(device)
+        games_id = self.games_id[indices]  # shape [batch n_moves=60]
+        states = self.board_states[indices]  # shape [batch n_moves=60 rows=8 cols=8]
 
         # Define seqpos slicing (note, we add n_ctx to pos_end to deal with the zero case)
         pos_start = self.args.pos_start
@@ -3719,8 +3738,7 @@ class LinearProbeTrainer:
         # Get the actual game state. The original state has {0: empty, 1: black, -1: white} and
         # we want our probe to be in the basis {0: empty, 1: theirs, 2: mine}. We're only training
         # on even moves i.e. black just played and mine = white, so we just need to map -1 -> 2.
-        state = get_board_states_and_legal_moves(games_square)[0]  # shape [batch moves 8 8]
-        state = state[:, seqpos_indices]  # shape [batch pos 8 8]
+        state = states[:, seqpos_indices]  # shape [batch pos 8 8]
         state[state == -1] = 2
 
         # Index into probe logprobs to get the logprobs for correct board state, and then
@@ -3859,7 +3877,7 @@ We've also given you some sample code to run at the end, which will plot the acc
 Previously, we just trained one linear probe on only the even moves. To break down the steps for this, we had to do the following:
 
 - Compute the probe logprobs, with shape `(games, posn=59, rows=8, cols=8, options=3)`
-- Remap the board state `state` from basis `{0: empty, 1: white, -1: black}` to `{0: empty, 1: theirs, 2: mine}`.
+- Remap the board state `state` from basis `{0: empty, 1: black, -1: white}` to `{0: empty, 1: theirs, 2: mine}`.
     - Since we were only using the even-valued positions, we could just slice them out and perform the mapping `{0, 1, -1} -> {0, 1, 2}`.
 - Index into logprobs with the basis-mapped `state` to get the correct logprobs, which had shape `(games, posns, rows, cols)`.
 - Compute loss = negative mean of correct logprobs (only including the even positions).
@@ -3867,7 +3885,7 @@ Previously, we just trained one linear probe on only the even moves. To break do
 Now, we want to train 3 linear probes at once, one for even moves only, one for odd moves only, and one for both at once. This will look like:
 
 - Compute the probe logprobs, with shape `(modes=3, games, posn=59, rows=8, cols=8, options=3)`
-- Remap the board state `state` from basis `{0: empty, 1: white, -1: black}` to `{0: empty, 1: theirs, 2: mine}`.
+- Remap the board state `state` from basis `{0: empty, 1: black, -1: white}` to `{0: empty, 1: theirs, 2: mine}`.
     - Since we're using odd and even positions, this means mapping even positions with `{0, 1, -1} -> {0, 1, 2}` and odd positions with `{0, 1, -1} -> {0, 2, 1}`.
 - Index into logprobs with the basis-mapped `state` to get the correct logprobs for each probe, which will have shape `(modes, games, posn, rows, cols)`.
 - Compute loss = negative mean of correct logprobs (only including the even positions for our even probe, odd positions for our odd probe, and all positions for our all probe).
@@ -3900,9 +3918,9 @@ class MultiProbeTrainingArgs(ProbeTrainingArgs):
 
 class LinearMultiProbeTrainer(LinearProbeTrainer):
     def training_step(self, indices: Int[Tensor, "n_games"]) -> Float[Tensor, ""]:
-        indices_cpu = indices.cpu()
-        games_id = board_seqs_id[indices_cpu]  # shape [batch n_moves=60]
-        games_square = board_seqs_square[indices_cpu]  # shape [batch n_moves=60]
+        indices = indices.to(device)
+        games_id = self.games_id[indices]  # shape [batch n_moves=60]
+        states = self.board_states[indices]  # shape [batch n_moves=60 rows=8 cols=8]
 
         pos_start = self.args.pos_start
         pos_end = self.args.pos_end + self.model.cfg.n_ctx
@@ -3934,7 +3952,7 @@ class LinearMultiProbeTrainer(LinearProbeTrainer):
         # Get the actual game state. The original state has {0: empty, 1: black, -1: white} and
         # we want our probe to be in the basis {0: empty, 1: theirs, 2: mine}. For even moves,
         # mine = white, so we map -1 -> 2. For odd moves, mine = black, so we map {1, -1} -> {2, 1}.
-        state = get_board_states_and_legal_moves(games_square)[0]
+        state = states
         state[:, ::2][state[:, ::2] == -1] = 2
         state[:, 1::2][state[:, 1::2] == 1] = 2
         state[:, 1::2][state[:, 1::2] == -1] = 1

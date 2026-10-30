@@ -1,4 +1,4 @@
-### ARENA [slack channel](https://join.slack.com/t/arena-uk/shared_invite/zt-3d3sro2sn-lACCkkoA3Sjm8J0pvWSaGQ)
+### ARENA [slack channel](https://info-arena.github.io/ARENA_img/slack.html)
 
 * Please report any errors/concerns with the material in #errata.
 
@@ -8,9 +8,13 @@
 ```
 git clone https://github.com/ARENA-education/ARENA_materials.git
 ```
-2) Run the install script
+2) Run the install script. `install_uv.sh` uses [uv](https://docs.astral.sh/uv/) and creates the environment at `ARENA_materials/.venv`:
 ```
-ARENA_materials/install.sh
+bash ARENA_materials/install_uv.sh
+```
+If that fails, fall back to the conda-based script:
+```
+bash ARENA_materials/install.sh
 ```
 
 This GitHub repo hosts the exercises and Streamlit pages for the ARENA program.
@@ -44,7 +48,7 @@ Some highlights from this chapter include:
 * Building your own transformer from scratch, and using it to sample autoregressive output
 * Using the [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) library developed by Neel Nanda to locate induction heads in a 2-layer model
 * Finding a circuit for [indirect object identification](https://arxiv.org/abs/2211.00593) in GPT-2 small
-* Intepreting model trained on toy tasks, e.g. classification of bracket strings, or modular arithmetic
+* Interpreting model trained on toy tasks, e.g. classification of bracket strings, or modular arithmetic
 * Replicating Anthropic's results on [superposition](https://transformer-circuits.pub/2022/toy_model/index.html), and training sparse autoencoders to recover features from superposition
 * Using [steering vectors](https://www.lesswrong.com/posts/5spBue2z2tw4JuDCx/steering-gpt-2-xl-by-adding-an-activation-vector) to induce behavioural changes in GPT2-XL
 
@@ -70,7 +74,7 @@ Some highlights from this chapter include:
 
 Additionally, the later exercise sets include a lot of suggested bonus material / further exploration once you've finished, including suggested papers to read and replicate.
 
-# [Chapter 3: LLM Evaluations](https://learn.arena.education/chapter4_alignment_science/)
+# [Chapter 3: LLM Evaluations](https://learn.arena.education/chapter3_llm_evals/)
 
 <img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/headers/header-ch3.png" width="400">
 
@@ -85,7 +89,7 @@ Some highlights from this chapter include:
 
 The exercises are written in collaboration with [Apollo Research](https://www.apolloresearch.ai/), and designed to give you the foundational skills for doing safety evaluation research on language models. 
 
-# [Chapter 4: Alignment Science](https://arena-chapter4-alignment-science.streamlit.app/)
+# [Chapter 4: Alignment Science](https://learn.arena.education/chapter4_alignment_science/)
 
 Coming soon!
 

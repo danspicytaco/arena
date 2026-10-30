@@ -255,7 +255,7 @@ Suppose that you have some **computational graph**, and you want to determine th
 # ! TAGS: []
 
 r'''
-<img src="https://raw.githubusercontent.com/callummcdougall/Fundamentals/main/images/abc_de_L.png" width="400">
+<img src="https://raw.githubusercontent.com/info-arena/ARENA_img/main/img/abc_ef_L.png" width="400">
 '''
 
 # ! CELL TYPE: markdown
@@ -266,9 +266,9 @@ r'''
 This graph corresponds to the following Python:
 
 ```python
-d = a * b
-e = b + c
-L = d + e
+e = a * b
+f = b + c
+L = e + f
 ```
 
 The goal of our system is that users can write ordinary looking Python code like this and have all the book-keeping needed to perform backpropagation happen behind the scenes. To do this, we're going to wrap each array and each function in special objects from our library that do the usual thing plus build up this graph structure that we need.
@@ -283,16 +283,16 @@ r'''
 
 We've drawn our computation graph from left to right and the arrows pointing to the right, so that in the forward pass, boxes to the right depend on boxes to the left. In the backwards pass, the opposite is true: the gradient of boxes on the left depends on the gradient of boxes on the right.
 
-If we want to compute the derivative of $L$ wrt all other variables (as was described in the reading), we should traverse the graph from right to left. Each time we encounter an instance of function application, we can use the chain rule from calculus to proceed one step further to the left. For example, if we have $d = a \times b$, then:
+If we want to compute the derivative of $L$ wrt all other variables (as was described in the reading), we should traverse the graph from right to left. Each time we encounter an instance of function application, we can use the chain rule from calculus to proceed one step further to the left. For example, if we have $e = a \times b$, then:
 
 $$
-\frac{dL}{da} = \frac{dL}{dd}\times \frac{dd}{da} = \frac{dL}{dd}\times b
+\frac{dL}{da} = \frac{dL}{de}\times \frac{de}{da} = \frac{dL}{de}\times b
 $$
 
-Suppose we are working from right to left, trying to calculate $\frac{dL}{da}$. If we already know the values of the variables $a$, $b$ and $d$, as well as the value of $\frac{dL}{dd}$, then we can use the following function to find $\frac{dL}{da}$:
+Suppose we are working from right to left, trying to calculate $\frac{dL}{da}$. If we already know the values of the variables $a$, $b$ and $e$, as well as the value of $\frac{dL}{de}$, then we can use the following function to find $\frac{dL}{da}$:
 
 $$
-F\left(a, b, d, \frac{dL}{dd}\right) = \frac{dL}{dd}\times b
+F\left(a, b, e, \frac{dL}{de}\right) = \frac{dL}{de}\times b
 $$
 
 and we can do something similar when trying to calculate $\frac{dL}{db}$.
@@ -314,7 +314,7 @@ def multiply_back(grad_out, out, a, b):
     return grad_out * b
 ```
 
-where `grad_out` is the gradient of the loss with respect to the output of the function (i.e. $\frac{dL}{dd}$), `out` is the output of the function (i.e. $d$), and `a` and `b` are our inputs.
+where `grad_out` is the gradient of the loss with respect to the output of the function (i.e. $\frac{dL}{de}$), `out` is the output of the function (i.e. $e$), and `a` and `b` are our inputs.
 '''
 
 # ! CELL TYPE: markdown
@@ -324,7 +324,7 @@ where `grad_out` is the gradient of the loss with respect to the output of the f
 r'''
 ### Topological Ordering
 
-When we're actually doing backprop, how do we guarantee that we'll always know the value of our backwards functions' inputs? For instance, in the example above we couldn't have computed $\frac{dL}{da}$ without first knowing $\frac{dL}{dd}$.
+When we're actually doing backprop, how do we guarantee that we'll always know the value of our backwards functions' inputs? For instance, in the example above we couldn't have computed $\frac{dL}{da}$ without first knowing $\frac{dL}{de}$.
 
 The answer is that we sort all our nodes using an algorithm called [topological sorting](https://en.wikipedia.org/wiki/Topological_sorting), and then do our computations in this order. After each computation, we store the gradients in our nodes for use in subsequent calculations.
 
@@ -356,7 +356,7 @@ If $N>1$, then pick any node, and follow the arrows until you reach a node with 
 r'''
 A quick note on some potentially confusing terminology. We will refer to the "end node" as the **root node**, and the "starting nodes" as **leaf nodes**. For instance, in the diagram at the top of the section, the left nodes `a`, `b` and `c` are the leaf nodes, and `L` is the root node. This might seem odd given it makes the leaf nodes come before the root nodes, but the reason is as follows: *when we're doing the backpropagation algorithm, we start at `L` and work our way back through the graph*. So, by our notation, we start at the root node and work our way out to the leaves.
 
-Another important piece of terminology here is **parent node**. This means the same thing as it does in most other contexts - the parents of node `x` are all the nodes `y` with connections `y -> x` (so in the diagram, `L`'s parents are `d` and `e`).
+Another important piece of terminology here is **parent node**. This means the same thing as it does in most other contexts - the parents of node `x` are all the nodes `y` with connections `y -> x` (so in the diagram, `L`'s parents are `e` and `f`).
 '''
 
 # ! CELL TYPE: markdown
@@ -981,7 +981,7 @@ r'''
 
 We're going to wrap each array with a wrapper object from our library which we'll call `Tensor` because it's going to behave similarly to a `torch.Tensor`.
 
-Each Tensor that is created by one of our forward functions will have a `Recipe`, which tracks the extra information need to run backpropagation.
+Each Tensor that is created by one of our forward functions will have a `Recipe`, which tracks the extra information needed to run backpropagation.
 
 `wrap_forward_fn` will take a forward function and return a new forward function that does the same thing while recording the info we need to do backprop in the `Recipe`.
 '''
@@ -1535,7 +1535,7 @@ Remember that your multiply function should also accept integers. You need to se
 <details>
 <summary>Help - I get <code>AssertionError: assert len(c.recipe.parents) == 1 and c.recipe.parents[0] is a</code> in the "test_multiply_float" test.</summary>
 
-This is probably because you've stored the inputs to `multiply` as integers when one of the is an integer. Remember, `parents` should just be a list of the **Tensors** that were inputs to `multiply`, so you shouldn't add ints.
+This is probably because you've stored the inputs to `multiply` as integers when one of them is an integer. Remember, `parents` should just be a list of the **Tensors** that were inputs to `multiply`, so you shouldn't add ints.
 </details>
 '''
 
@@ -1723,7 +1723,7 @@ r'''
 > It's more of a fun LeetCode-style challenge, and writing a solution for it isn't crucial for understanding today's content.
 > ```
 
-Write a general function `topological_sort` that return a list of node's children in topological order (beginning with the furthest descendants, ending with the starting node) using [depth-first search](https://en.wikipedia.org/wiki/Topological_sorting).
+Write a general function `topological_sort` that returns a list of node's children in topological order (beginning with the furthest descendants, ending with the starting node) using [depth-first search](https://en.wikipedia.org/wiki/Topological_sorting).
 
 We've given you a `Node` class, with a `children` attribute, and a `get_children` function. You shouldn't change any of these, and your `topological_sort` function should use `get_children` to access a node's children rather than calling `node.children` directly. In subsequent exercises, we'll replace the `Node` class with the `Tensor` class (and using a different `get_children` function), so this will ensure your code still works for this new case.
 
@@ -2028,6 +2028,7 @@ if MAIN:
     tests.test_backprop_float_arg(Tensor)
     tests.test_backprop_shared_parent(Tensor)
     tests.test_backprop_grad_accumulation(Tensor)
+    tests.test_backprop_broadcast_shapes(Tensor)
 # END HIDE
 
 # ! CELL TYPE: markdown
@@ -2064,7 +2065,7 @@ This error is probably because your computational graph function checks whether 
 <details>
 <summary>Help - I'm failing on the <code>test_backprop_requires_grad_sum</code> test and I don't know why.</summary>
 
-This test is designed to spot cases where you're accidentally **overwriting the gradient with each backward fn call**, rather than summing them. Remember that if a node has multiple paths from itself to the end node, then that node's grad attribute should be the sum of the gradients from all those
+This test is designed to spot cases where you're accidentally **overwriting the gradient with each backward fn call**, rather than summing them. Remember that if a node has multiple paths from itself to the end node, then that node's grad attribute should be the sum of the gradients from all those paths.
 
 </details>
 
@@ -2138,7 +2139,7 @@ r'''
 > You should spend up to ~5 minutes on this exercise (it's not a trick question, it is as simple as it looks!).
 > ```
 
-`torch.negative` just performs `-x` elementwise. Make your own version `negative` using `wrap_forward_fn`. Note, you don't need to worry about unbroadcasting here because `np.negative` won't change the input shape (technically it can since `np.negative(x, out)` is actually the negative version of `x` broadcasted to the shape of `out`, but we won't be using it in this way during our exercises).
+`torch.negative` just performs `-x` elementwise. Make your own version of `negative` using `wrap_forward_fn`. Note, you don't need to worry about unbroadcasting here because `np.negative` won't change the input shape (technically it can since `np.negative(x, out)` is actually the negative version of `x` broadcasted to the shape of `out`, but we won't be using it in this way during our exercises).
 '''
 
 # ! CELL TYPE: code
@@ -2253,7 +2254,7 @@ r'''
 <details>
 <summary>Solution (and explanation)</summary>
 
-Explanation: the reshape operation that takes us from the tensor $\frac{\partial L}{\partial \mathbf{x_r}}$ to $\frac{\partial L}{\partial \mathbf{x}}$ is exactly the inverse of the forward reshape operation that produced $\mathbf{x_r}$ from $\mathbf{x}$. In other words, we want to to take `grad_out` and reshape it back to the shape of `x`.
+Explanation: the reshape operation that takes us from the tensor $\frac{\partial L}{\partial \mathbf{x_r}}$ to $\frac{\partial L}{\partial \mathbf{x}}$ is exactly the inverse of the forward reshape operation that produced $\mathbf{x_r}$ from $\mathbf{x}$. In other words, we want to take `grad_out` and reshape it back to the shape of `x`.
 
 ```python
 SOLUTION
@@ -2770,7 +2771,7 @@ r'''
 
 Implement your version of `torch.matmul`, restricting it to the simpler case where both inputs are 2D (this means we don't need to worry about unbroadcasting or anything).
 
-Note - althought the solution to this exercise is very short (just one line), you may find the actual mathematical derivation a bit tricky. We've given hints to help you, which we recommend using if you're stuck.
+Note - although the solution to this exercise is very short (just one line), you may find the actual mathematical derivation a bit tricky. We've given hints to help you, which we recommend using if you're stuck.
 '''
 
 # ! CELL TYPE: code
@@ -2852,7 +2853,7 @@ You can calculate the gradient wrt `y` in a similar way - we leave this as an ex
 r'''
 ## Parameters & Modules
 
-We've now written enough backwards passes that we can go up a layer and write our own `nn.Parameter` and `nn.Module`. These are important abstractions that help us building up neural networks.
+We've now written enough backwards passes that we can go up a layer and write our own `nn.Parameter` and `nn.Module`. These are important abstractions that help us build up neural networks.
 
 Below is a simple implementation of `Parameter`. It is itself a `Tensor`, shares storage with the provided `Tensor` and requires_grad is `True` by default - that's it! Make sure you understand the code being run in this cell to test the functionality of this class.
 '''
@@ -3138,11 +3139,11 @@ Note - if you're using the `exp` function, it's usually good to make your implem
 
 If we were to do this naively:
 ```python
-logits = logits - logits.max(dim=-1)
+logits = logits - logits.max(dim=-1, keepdim=True).values
 ```
 
 This would require us to first define backwards functions for 
-`max` which reduces a vector down to a scalar, 
+`max` which reduces along an axis (here giving a per-row maximum), 
 and we only have an element-wise 
 `maximum` between two vectors. Thankfully, we can dodge this problem:
 Shifting the logits by a constant doesn't actually change the
@@ -3480,7 +3481,7 @@ if MAIN:
     #     title="MLP training on MNIST from scratch",
     #     width=800,
     #     return_fig=True,
-    # ).write_html(str(section_dir / "0402.html"), config={"displaylogo": False})
+    # ).write_html(str(section_dir / "0402.html"), config={"displaylogo": False}, include_plotlyjs="cdn")
     # END FILTERS
 
 # ! CELL TYPE: markdown
