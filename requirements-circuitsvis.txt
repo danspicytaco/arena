@@ -62,6 +62,7 @@ gymnasium[atari,accept-rom-license,other,mujoco-py]==0.29.0
 mujoco
 envpool==1.2.5
 inspect_ai
+nest-asyncio2>=1.7.4  # Fix shared-context re-entry with ipykernel 7.
 wikipedia
 python-dotenv
 anthropic>=0.42.0

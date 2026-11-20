@@ -22,6 +22,7 @@ from inspect_ai.util import ExecResult, sandbox
 chapter = "chapter3_llm_evals"
 section = "part5_ai_control"
 root_dir = next(p for p in Path(__file__).resolve().parents if (p / chapter).exists())
+load_dotenv(root_dir / ".env", override=True)
 exercises_dir = root_dir / chapter / "exercises"
 section_dir = exercises_dir / section
 if str(exercises_dir) not in sys.path:

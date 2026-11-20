@@ -21,6 +21,7 @@ from tqdm import tqdm
 chapter = "chapter3_llm_evals"
 section = "part1_intro_to_evals"
 root_dir = next(p for p in Path(__file__).resolve().parents if (p / chapter).exists())
+load_dotenv(root_dir / ".env", override=True)
 section_dir = root_dir / chapter / "exercises" / section
 exercises_dir = root_dir / chapter / "exercises"
 if str(exercises_dir) not in sys.path:

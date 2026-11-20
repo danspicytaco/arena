@@ -25,6 +25,7 @@ from wikipedia import DisambiguationError, PageError, WikipediaPage
 chapter = "chapter3_llm_evals"
 section = "part4_llm_agents"
 root_dir = next(p for p in Path(__file__).resolve().parents if (p / chapter).exists())
+load_dotenv(root_dir / ".env", override=True)
 exercises_dir = root_dir / chapter / "exercises"
 section_dir = exercises_dir / section
 if str(exercises_dir) not in sys.path:
@@ -38,7 +39,7 @@ from part4_llm_agents.utils import evaluate_expression, execute_tools, extract_a
 # `wikipedia.page(...)` call below.
 wikipedia.set_user_agent("ARENA-AI-safety-course/3.4 (https://learn.arena.education)")
 
-EVAL_MODEL = "openai/gpt-4o-mini"
+EVAL_MODEL = "openrouter/openai/gpt-4o-mini"
 os.environ["INSPECT_EVAL_MODEL"] = EVAL_MODEL
 
 
